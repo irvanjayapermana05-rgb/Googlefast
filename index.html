@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
+    <style>
+        /* --- CSS UTAMA (TAMPILAN PENONTON) --- */
+        body { 
+            background-color: white; font-family: 'arial', sans-serif; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 100vh; margin: 0; overflow: hidden;
+            -webkit-user-select: none; user-select: none;
+        }
+        .google-logo { width: 272px; margin-bottom: 20px; cursor: pointer; } 
+        .search-bar {
+            width: 90%; max-width: 584px; height: 44px;
+            border: 1px solid #dfe1e5; border-radius: 24px;
+            display: flex; align-items: center; padding: 0 15px;
+            margin-bottom: 25px; box-shadow: 0 1px 6px rgba(32,33,36,.28);
+        }
+        .search-input { flex-grow: 1; border: none; outline: none; font-size: 16px; margin-left: 10px; background: transparent; }
+        .icon { width: 20px; height: 20px; fill: #9aa0a6; }
+        .icon-mic { fill: #4285f4; margin-left: 10px; }
+        .btn-container { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 90%; }
+        button.g-btn { background-color: #f8f9fa; border: 1px solid #f8f9fa; border-radius: 4px; color: #3c4043; font-size: 14px; padding: 10px 16px; cursor: pointer; flex-grow: 1; max-width: 150px; }
+
+        /* --- CSS REMOTE CONTROL --- */
+        #remote-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #111; z-index: 100000; color: #0f0;
+            font-family: monospace; padding: 20px; box-sizing: border-box; overflow-y: scroll;
+        }
+        .key-input {
+            background: #222; border: 1px solid #444; color: #0f0; 
+            padding: 8px; width: 48%; border-radius: 4px; font-family: monospace;
+            text-align: center; font-weight: bold;
+        }
+        .key-label { font-size: 10px; color: #888; margin-bottom: 5px; display: block; }
+        .pulse { animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 0, 0, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(220, 0, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 0, 0, 0); }
+        }
+        
+        /* TOMBOL RAHASIA */
+        #secret-btn {
+            position: fixed; bottom: 40px; right: 30px; 
+            width: 50px; height: 50px;
+            background: rgba(0,0,0,0.01); border-radius: 50%; border: none; font-size: 24px; 
+            display: flex; align-items: center; justify-content: center;
+            color: #ccc; cursor: pointer; z-index: 2147483647; opacity: 0.5; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* --- MODE SAKU (CURTAIN) --- */
+        #pocket-curtain {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 2147483647; 
+            align-items: center; justify-content: center;
+            color: #222; font-size: 12px; touch-action: none;
+        }
+
+        /* --- TOGGLE SWITCHES --- */
+        .switch-container {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #222; padding: 10px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #333;
+        }
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #555; -webkit-transition: .4s; transition: .4s; border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
+            background-color: white; -webkit-transition: .4s; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #0f0; }
+        input:checked + .slider:before { -webkit-transform: translateX(20px); -ms-transform: translateX(20px); transform: translateX(20px); }
+        
+        /* AI Prompt Box */
+        #ai-container { display: none; margin-bottom: 15px; }
+        #ai-prompt {
+            width: 100%; height: 80px; background: #222; color: #fff; border: 1px solid #0f0;
+            padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;
+            box-sizing: border-box; resize: vertical;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-ui">
+        <center>
+            <img class="google-logo" src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png" alt="Google" onclick="cekLogo()">
+        </center>
+        <div class="search-bar">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path></svg>
+            <input type="text" class="search-input" disabled>
+            <svg class="icon icon-mic" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"></path><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"></path></svg>
+        </div>
+        <div class="btn-container">
+            <button class="g-btn" onclick="siapkan('web')">Google Web</button>
+            <button class="g-btn" onclick="siapkan('image')">Google Image</button>
+            <button class="g-btn" onclick="siapkan('wiki')">Wikipedia</button>
+        </div>
+    </div>
+
+    <button id="secret-btn" onclick="bukaRemote()">⚙️</button>
+
+    <div id="remote-overlay">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #333; padding-bottom:10px; margin-bottom:20px;">
+            <h2 style="margin:0; font-size: 18px;">🎛️ MAGITOOL PRO</h2>
+            <button onclick="tutupRemote()" style="background:#333; color:white; border:none; padding:8px 15px; border-radius: 4px;">TUTUP</button>
+        </div>
+
+        <button onclick="aktifkanModeSaku()" style="width:100%; padding:15px; background:#004400; color:#0f0; border:1px solid #0f0; border-radius:4px; font-weight:bold; margin-bottom: 20px;">🔒 MODE SAKU</button>
+
+        <div style="margin-bottom: 20px; border: 1px solid #333; padding: 10px; border-radius: 8px;">
+            <div style="font-size: 12px; color: #aaa; margin-bottom: 10px; text-align: center;">MODE OPERASI</div>
+            
+            <div class="switch-container">
+                <span>1. Kata Terbalik</span>
+                <label class="switch">
+                    <input type="checkbox" id="mode-reverse" onchange="cekToggle('rev')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="switch-container">
+                <span>2. Mode AI (Gemini)</span>
+                <label class="switch">
+                    <input type="checkbox" id="mode-ai" onchange="cekToggle('ai')">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div id="ai-container">
+                <div style="font-size: 10px; color: #888; margin-bottom: 5px;">PROMPT SYSTEM (#KATA# akan diganti suara):</div>
+                <textarea id="ai-prompt">Sebutkan tanggal lahir dari: #KATA#. Jawab format angka saja. Contoh: 17 Agustus 1945.</textarea>
+            </div>
+        </div>
+
+        <div style="background: #1a1a1a; padding: 10px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="display:flex; justify-content: space-between;">
+                <div style="width:48%"><span class="key-label">AWAL</span><input type="text" id="k-start" class="key-input" value="yakin"></div>
+                <div style="width:48%"><span class="key-label">AKHIR</span><input type="text" id="k-end" class="key-input" value="ya"></div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div id="mic-status" style="color: #666; font-size: 14px; margin-bottom: 10px;">MIC OFF</div>
+            <button id="big-mic-btn" onclick="toggleMic()" style="width: 100px; height: 100px; border-radius: 50%; background: #222; border: 3px solid #444; color: white; font-size: 40px; cursor: pointer; transition: all 0.2s;">🎙️</button>
+        </div>
+
+        <div style="display: flex; gap: 5px; margin-bottom: 20px;">
+            <input type="text" id="manual-input" placeholder="Ketik manual..." style="flex: 1; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 4px;">
+            <button onclick="kirimManual()" style="padding: 12px; background: #0066cc; color: white; border: none; border-radius: 4px;">KIRIM</button>
+        </div>
+        <button onclick="kirimDB(null)" style="width:100%; padding:15px; background:#900; color:white; border:none; border-radius:4px; font-weight:bold;">❌ RESET</button>
+
+        <div id="remote-log" style="margin-top: 20px; font-size: 11px; color: #555; border-top: 1px solid #333; padding-top: 10px;">Log aktivitas...</div>
+    </div>
+
+    <div id="pocket-curtain" onclick="cekBukaSaku()">
+        Tap 4x to Wake
+    </div>
+
+    <script>
+        // --- API KEY SUDAH DIISI ---
+        const GEMINI_API_KEY = "AIzaSyBTSRA-Tthwe13ZW5PmXUJxrIBke9Jq2kI"; 
+        
+        if (window.history.replaceState) {
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({path: cleanUrl}, '', cleanUrl);
+        }
+        
+        // --- FIREBASE CONFIG (Sesuai file Anda) ---
+        const firebaseConfig = { databaseURL: "https://inject-fb-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database().ref('prediksi');
+
+        let targetMode = 'web';
+        let isWaiting = false;
+
+        function siapkan(mode) {
+            targetMode = mode;
+            isWaiting = true;
+            document.getElementById('main-ui').style.display = 'none';
+            db.set(null);
+        }
+
+        db.on('value', (snapshot) => {
+            const data = snapshot.val();
+            const isRemoteOpen = document.getElementById('remote-overlay').style.display === 'block';
+            if (isWaiting && data !== null && !isRemoteOpen) {
+                let finalUrl = "";
+                if (data === "autodraw") finalUrl = "https://www.autodraw.com/";
+                else if (data.startsWith("calc:")) finalUrl = "https://www.google.com/search?q=" + data.split(":")[1];
+                else if (data.startsWith("timer:")) finalUrl = "https://www.google.com/search?q=timer";
+                else {
+                    let enc = encodeURIComponent(data);
+                    if (targetMode === 'image') finalUrl = "https://www.google.com/search?tbm=isch&q=" + enc;
+                    else if (targetMode === 'wiki') finalUrl = "https://id.wikipedia.org/w/index.php?search=" + enc;
+                    else finalUrl = "https://www.google.com/search?q=" + enc;
+                }
+                window.location.replace(finalUrl);
+            }
+        });
+
+        // --- TOGGLE LOGIC ---
+        function cekToggle(type) {
+            let rev = document.getElementById('mode-reverse');
+            let ai = document.getElementById('mode-ai');
+            let aiBox = document.getElementById('ai-container');
+
+            if (type === 'rev' && rev.checked) ai.checked = false; // Matikan AI jika Rev nyala
+            if (type === 'ai' && ai.checked) rev.checked = false; // Matikan Rev jika AI nyala
+
+            // Show/Hide AI Box
+            if (ai.checked) aiBox.style.display = 'block';
+            else aiBox.style.display = 'none';
+        }
+
+        // --- MODE SAKU (4x Tap) ---
+        let tapCount = 0;
+        function aktifkanModeSaku() {
+            document.getElementById('pocket-curtain').style.display = 'flex';
+            try { document.documentElement.requestFullscreen(); } catch(e){}
+        }
+        function cekBukaSaku() {
+            tapCount++;
+            if(tapCount === 4) { // UBAH JADI 4 KALI
+                document.getElementById('pocket-curtain').style.display = 'none';
+                tapCount = 0;
+                if(navigator.vibrate) navigator.vibrate([100, 50, 100]); // Getar konfirmasi buka
+            }
+            setTimeout(() => { tapCount = 0; }, 600); 
+        }
+
+        // --- REMOTE LOGIC ---
+        let logoTap = 0;
+        function cekLogo() {
+            logoTap++;
+            if(logoTap === 5) { bukaRemote(); logoTap = 0; }
+            setTimeout(() => { logoTap = 0; }, 2000);
+        }
+        function bukaRemote() {
+            document.getElementById('remote-overlay').style.display = 'block';
+            isWaiting = false;
+            requestScreenLock();
+            if(navigator.vibrate) navigator.vibrate(50);
+        }
+        function tutupRemote() {
+            document.getElementById('remote-overlay').style.display = 'none';
+            forceStopMic();
+        }
+
+        // --- MIC & SPEECH ---
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = new SpeechRec();
+        recognition.lang = 'id-ID'; 
+        recognition.continuous = true;   
+        recognition.interimResults = false; 
+        let shouldListen = false;
+
+        recognition.onresult = function(event) {
+            let latest = event.results[event.results.length - 1];
+            if (latest.isFinal) {
+                let rawText = latest[0].transcript.toLowerCase().trim();
+                let cleanText = rawText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"");
+                logRemote("Mendengar: " + cleanText);
+                prosesLogika(cleanText);
+            }
+        };
+
+        recognition.onend = function() {
+            if (shouldListen) { console.log("Auto-restart mic..."); try { recognition.start(); } catch(e) {} }
+            else { uiMicOff(); }
+        };
+
+        // --- INTI PEMROSESAN LOGIKA (REVERSE & AI) ---
+        async function prosesLogika(text) {
+            let kStart = document.getElementById('k-start').value.toLowerCase().trim();
+            let kEnd = document.getElementById('k-end').value.toLowerCase().trim();
+            
+            // Bypass Reset
+            if (text.includes("reset") || text.includes("hapus")) {
+                if(navigator.vibrate) navigator.vibrate([200, 100, 200]); 
+                kirimDB(null); return;
+            }
+
+            // Cek Pola
+            let regex = new RegExp(kStart + "\\s+(.*?)\\s+" + kEnd);
+            let match = text.match(regex);
+
+            if (match && match[1]) {
+                let inputBersih = match[1].trim();
+                
+                // CEK MODE MANA YANG AKTIF
+                let isRev = document.getElementById('mode-reverse').checked;
+                let isAI = document.getElementById('mode-ai').checked;
+
+                if (isAI) {
+                    // --- MODE AI ---
+                    logRemote("Memproses AI...");
+                    if(navigator.vibrate) navigator.vibrate(50);
+                    
+                    let promptTemplate = document.getElementById('ai-prompt').value;
+                    let finalPrompt = promptTemplate.replace(/#KATA#/gi, inputBersih);
+                    
+                    try {
+                        let hasilAI = await panggilGemini(finalPrompt);
+                        kirimDB(hasilAI);
+                    } catch (err) {
+                        logRemote("Error AI: " + err);
+                    }
+
+                } else if (isRev) {
+                    // --- MODE TERBALIK ---
+                    // "gajah" -> "hajag" -> "Hajag"
+                    let terbalik = inputBersih.split('').reverse().join('').toLowerCase();
+                    let finalRev = terbalik.charAt(0).toUpperCase() + terbalik.slice(1);
+                    kirimDB(finalRev);
+
+                } else {
+                    // --- MODE NORMAL ---
+                    if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200, 1000]); 
+                    if (inputBersih.includes("hitung")) kirimDB("calc:" + inputBersih.replace("hitung", "").trim());
+                    else if (inputBersih.includes("gambar")) kirimDB("autodraw");
+                    else kirimDB(inputBersih);
+                }
+
+            } else {
+                logRemote("Ignored");
+            }
+        }
+
+        // --- FUNGSI PANGGIL GEMINI AI ---
+        async function panggilGemini(promptText) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+            });
+            const data = await response.json();
+            let jawaban = data.candidates[0].content.parts[0].text;
+            // Bersihkan format markdown jika ada (* atau #)
+            return jawaban.replace(/[*_#]/g, '').trim();
+        }
+
+        function toggleMic() {
+            if (!shouldListen) { shouldListen = true; uiMicOn(); try { recognition.start(); } catch(e){} }
+            else { forceStopMic(); }
+        }
+        function forceStopMic() { shouldListen = false; recognition.stop(); uiMicOff(); }
+        function uiMicOn() {
+            document.getElementById('mic-status').innerText = "LISTENING (ON)";
+            document.getElementById('mic-status').style.color = "#0f0";
+            document.getElementById('big-mic-btn').style.background = "#d00";
+            document.getElementById('big-mic-btn').classList.add("pulse");
+        }
+        function uiMicOff() {
+            document.getElementById('mic-status').innerText = "MIC OFF";
+            document.getElementById('mic-status').style.color = "#666";
+            document.getElementById('big-mic-btn').style.background = "#222";
+            document.getElementById('big-mic-btn').classList.remove("pulse");
+        }
+
+        function kirimManual() {
+            let val = document.getElementById('manual-input').value;
+            kirimDB(val);
+            document.getElementById('manual-input').value = "";
+        }
+        function kirimDB(data) {
+            db.set(data).then(() => { 
+                logRemote("TERKIRIM: " + (data||"RESET")); 
+                // Getar panjang setelah sukses kirim (Untuk mode AI/Rev juga)
+                if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200, 1000]);
+            });
+        }
+        function logRemote(msg) {
+            let d = document.getElementById('remote-log');
+            d.innerHTML = "<div>> " + msg + "</div>" + d.innerHTML;
+        }
+        async function requestScreenLock() { try { await navigator.wakeLock.request('screen'); } catch(e){} }
+    </script>
+</body>
+</html>
