@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>System Panel v15.3</title> 
+    <title>System Panel v15.7</title> 
     
     <link rel="preconnect" href="https://www.google.com">
     <link rel="preconnect" href="https://inject-fb-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
-        /* --- GLOBAL & RESET --- */
+        /* --- GLOBAL & RESET (Gaya v15.2 Asli) --- */
         * { box-sizing: border-box; }
         
         body { 
@@ -130,7 +130,7 @@
         .dual-input { display: flex; gap: 10px; width: 100%; align-items: center;}
         
         .inp-config {
-            flex: 1; min-width: 0;
+            flex: 1; min-width: 0; /* Ini kunci agar kolom Ya dan Yakin seimbang */
             background: #1c1c1c; border: 1px solid #2c2c2c; color: #fff;
             padding: 12px; border-radius: 10px; outline: none; font-family: 'Inter', sans-serif;
             text-align: center; font-size: 14px; font-weight: 500; transition: 0.2s; width: 100%;
@@ -168,10 +168,6 @@
 <body id="body-bg">
 
     <div id="fake-screen" onclick="ketukFakeScreen()"></div>
-    
-    <audio id="silence-keeper" loop>
-        <source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//oeAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA//oeAAABAAAAAAAEYAAAABAAAAAAAAAAAAAA//oeZBAAAAAAAARgAAAAEAAAAAAAAAAAAAD/+7BkAAALAAAAABAAAAgAAAAA" type="audio/mpeg">
-    </audio>
 
     <div id="receiver-ui">
         <div class="btn-container">
@@ -181,7 +177,7 @@
         </div>
     </div>
     
-    <div class="secret-footer" onclick="ketukRahasia()">system v15.3</div>
+    <div class="secret-footer" onclick="ketukRahasia()">system v15.7</div>
 
     <div id="remote-ui">
         <div class="rem-header">
@@ -267,36 +263,20 @@
         const firebaseConfig = { databaseURL: "https://inject-fb-default-rtdb.asia-southeast1.firebasedatabase.app/" };
         try { firebase.initializeApp(firebaseConfig); } catch(e){}
 
-        // --- CORE STATES ---
-        let isMicActive = false; // Intensi User: Apakah mic HARUSNYA hidup?
+        let isMicIntentOn = false; 
         let recognition;
         let isPaused = false; 
         let restartTimer;
-        let wakeLock = null; // Agar layar tidak tidur
-        
-        // --- AUDIO KEEPER ---
-        const silenceAudio = document.getElementById('silence-keeper');
-        silenceAudio.volume = 0; // Pastikan silent
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('remote')) bukaRemote();
 
-            // Pocket Mode MANUAL Handler
             document.getElementById('pocket-check').addEventListener('change', function() {
                 if(this.checked) hidupkanFakeScreen();
                 else matikanFakeScreen();
             });
         };
-
-        // --- WAKE LOCK API (Jaga HP Tetap Melek) ---
-        async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) {}
-        }
 
         // --- GESTURE RAHASIA ---
         let tapCount = 0;
@@ -316,7 +296,6 @@
             document.querySelector('.secret-footer').style.display = 'none';
             document.getElementById('remote-ui').style.display = 'flex';
             document.getElementById('body-bg').style.backgroundColor = '#121212';
-            requestWakeLock(); // Request wake lock saat masuk menu
         }
 
         function keluarRemote() {
@@ -326,10 +305,9 @@
             document.getElementById('body-bg').style.backgroundColor = 'white';
             stopMicLogic(); 
             matikanFakeScreen();
-            if (wakeLock !== null) { wakeLock.release().then(() => { wakeLock = null; }); }
         }
 
-        // --- FAKE SCREEN ---
+        // --- FAKE SCREEN (BLACK SCREEN) ---
         let fakeTapCount = 0;
         let fakeTimer;
 
@@ -348,6 +326,8 @@
             fakeTapCount++;
             clearTimeout(fakeTimer);
             fakeTimer = setTimeout(() => { fakeTapCount = 0; }, 500);
+            
+            // Trigger 4 ketukan untuk mematikan
             if (fakeTapCount >= 4) { 
                 if(navigator.vibrate) navigator.vibrate(50);
                 matikanFakeScreen();
@@ -403,7 +383,7 @@
             input.style.opacity = isChecked ? "1" : "0.3";
         }
 
-        // --- ROBUST SPEECH RECOGNITION ENGINE ---
+        // --- SPEECH RECOGNITION (STABLE & CLEAN) ---
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true; 
@@ -411,30 +391,23 @@
             recognition.lang = 'id-ID';
 
             recognition.onstart = function() {
-                // UI Update hanya jika ini adalah START awal, bukan restart loop
-                // Kita gunakan teknik MASKING agar user tidak melihat flickering
                 updateMicUI(true);
+                triggerStartVibration(); 
             };
 
             recognition.onend = function() {
-                // LOGIKA PENTING: Jika isMicActive (User mau ON), tapi browser matiin (Timeout/Silence)
-                // Kita restart SECEPAT KILAT tanpa ubah UI jadi "Tap to Start"
-                if(isMicActive && !isPaused) {
+                // LOGIKA RAPID RESTART: Jika user mau nyala, tapi mati, nyalakan lagi!
+                if(isMicIntentOn && !isPaused) {
                     clearTimeout(restartTimer);
                     restartTimer = setTimeout(() => { 
                         try { recognition.start(); } catch(e){} 
-                    }, 10); // 10ms restart delay (Hampir instan)
-                } 
-                else if (!isPaused) {
-                    // Ini kalau user BENAR-BENAR stop manual
+                    }, 100); 
+                } else if (!isPaused) {
                     updateMicUI(false);
-                    silenceAudio.pause(); // Matikan audio keeper
                 }
             };
             
-            recognition.onerror = function(event) {
-                // Ignore errors, biarkan onend yang handle restart
-            };
+            recognition.onerror = function(event) {};
 
             recognition.onresult = function(event) {
                 if(isPaused) return; 
@@ -469,12 +442,10 @@
                             let useDelay = document.getElementById('delay-check').checked;
                             
                             if(useDelay) {
-                                // Mode Infinite Loop
                                 let seconds = parseInt(document.getElementById('delay-val').value) || 3;
                                 isPaused = true;
-                                recognition.stop(); // Stop engine
+                                recognition.stop(); 
                                 
-                                // UI Status: PAUSED
                                 let statusTxt = document.getElementById('mic-status-txt');
                                 statusTxt.innerText = "PAUSED (" + seconds + "s)...";
                                 statusTxt.classList.remove('status-on');
@@ -488,7 +459,6 @@
                                     try { recognition.start(); } catch(e){}
                                 }, seconds * 1000);
                             } else {
-                                // Mode Sekali Pakai
                                 stopMicLogic();
                             }
                         }
@@ -499,23 +469,18 @@
 
         function toggleMic() {
             if(!recognition) return alert("Browser tidak support Voice API");
-            if(isMicActive) { stopMicLogic(); } 
+            if(isMicIntentOn) { stopMicLogic(); } 
             else { startMicLogic(); }
         }
         
         function startMicLogic() {
-            isMicActive = true;
-            try { 
-                recognition.start(); 
-                silenceAudio.play().catch(e => console.log("Audio play blocked")); // Jalankan audio keeper
-                triggerStartVibration();
-            } catch(e){}
+            isMicIntentOn = true;
+            try { recognition.start(); } catch(e){}
         }
 
         function stopMicLogic() {
-            isMicActive = false;
+            isMicIntentOn = false;
             try { recognition.stop(); } catch(e){}
-            silenceAudio.pause();
             updateMicUI(false);
         }
 
