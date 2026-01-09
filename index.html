@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>System Panel v15.13 (2.5 Flash)</title> 
+    <title>System Panel v15.15 (Custom 2.5)</title> 
     
     <link rel="preconnect" href="https://www.google.com">
     <link rel="preconnect" href="https://inject-fb-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
@@ -202,6 +202,7 @@
             margin-top: auto; text-align: center; width: 100%;
         }
         .log-txt { color: #00d2ff; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; } 
+        .log-err { color: #ff0000; font-weight: 800; letter-spacing: 1px; }
 
         #fake-screen {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -221,7 +222,7 @@
         </div>
     </div>
     
-    <div class="secret-footer" onclick="ketukRahasia()">system v15.13</div>
+    <div class="secret-footer" onclick="ketukRahasia()">system v15.15</div>
 
     <div id="remote-ui">
         <div id="sys-check-overlay">
@@ -381,12 +382,13 @@
             }
         }
 
-        // --- GEMINI AI LOGIC (MODEL 2.5 FLASH) ---
+        // --- GEMINI AI LOGIC (CUSTOM URL 2.5 FLASH) ---
         async function askGemini(keyword) {
             updateLog("ASKING AI...");
             let promptTemplate = document.getElementById('ai-prompt').value;
             let finalPrompt = promptTemplate.replace("{KEYWORD}", keyword);
-            // MENGGUNAKAN GEMINI 2.5 FLASH SESUAI PERMINTAAN
+            
+            // MENGGUNAKAN URL SPESIFIK SESUAI PERMINTAAN USER
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
             try {
@@ -395,16 +397,27 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] })
                 });
+                
                 const data = await response.json();
+                
+                if(data.error) {
+                    console.error("Gemini Error:", data.error);
+                    updateErrorLog("ERR: " + data.error.status);
+                    return;
+                }
+
                 if (data.candidates && data.candidates[0].content) {
                     let answer = data.candidates[0].content.parts[0].text.replace(/[*_#]/g, '').trim();
                     updateLog(keyword + ": " + answer);
                     speakResult(answer);
                 } else { 
                     console.log(data);
-                    updateLog("AI ERROR"); 
+                    updateErrorLog("NO DATA"); 
                 }
-            } catch (error) { updateLog("CONN ERR"); }
+            } catch (error) { 
+                console.error(error);
+                updateErrorLog("NET ERR"); 
+            }
         }
 
         function speakResult(text) {
@@ -514,6 +527,7 @@
         function triggerSuccessVibration() { if (document.getElementById('success-vibe-check').checked && navigator.vibrate) navigator.vibrate([500, 100, 500]); }
         function triggerStartVibration() { if (navigator.vibrate) navigator.vibrate(80); }
         function updateLog(msg) { document.getElementById('console-log').innerHTML = `<span class="log-txt">${msg}</span>`; }
+        function updateErrorLog(msg) { document.getElementById('console-log').innerHTML = `<span class="log-err">${msg}</span>`; }
         
         // GESTURE & CHECK
         let tapCount = 0, tapTimer;
@@ -569,10 +583,8 @@
 
             if(allGreen) {
                 if(autoStart) {
-                    // AUTO MODE: Bypass manual screen confirm
                     setTimeout(() => tutupSystemCheck(), 800);
                 } else {
-                    // MANUAL MODE: Must confirm screen
                     document.getElementById('manual-confirm-box').style.display = 'flex';
                     if(isScreenConfirmed) document.getElementById('btn-go').classList.add('ready');
                     else document.getElementById('btn-go').classList.remove('ready');
