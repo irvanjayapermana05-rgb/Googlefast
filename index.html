@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>System Panel v15.35 (Ultimate)</title> 
+    <title>System Panel v15.36 (Final Fix)</title> 
     
     <link rel="preconnect" href="https://www.google.com">
     <link rel="preconnect" href="https://inject-fb-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
@@ -111,12 +111,12 @@
 
         /* SAVE BUTTON (ICON STYLE) */
         .btn-icon-save {
-            background: none; border: none; color: #00d2ff; font-size: 20px; cursor: pointer;
+            background: none; border: none; color: #00d2ff; font-size: 22px; cursor: pointer;
             width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
             transition: 0.2s;
         }
         .btn-icon-save:active { transform: scale(0.9); }
-        .btn-icon-save.saved { color: #00ff00; } /* Green when saved */
+        .btn-icon-save.saved { color: #00ff00; transform: scale(1.1); } 
 
         .mic-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 25px; flex-shrink: 0; width: 100%; }
         .mic-circle {
@@ -180,6 +180,11 @@
         .btn-manual-send:active { transform: scale(0.95); opacity: 0.8; }
         .btn-inj-send { background: #00d2ff; color: #000; border:none; }
 
+        /* POCKET MODE TOGGLE (GLOBAL SETTING) */
+        .global-settings { width: 100%; margin-bottom: 10px; display: flex; justify-content: flex-end; padding-right: 5px; }
+        .pocket-toggle-wrap { display: flex; align-items: center; gap: 8px; }
+        .pocket-label { font-size: 10px; color: #666; font-weight: bold; }
+
         #console-log { height: 35px; line-height: 35px; flex-shrink: 0; background: #111; border-top: 1px solid #333; padding: 0 15px; font-size: 16px; font-family: 'Inter', sans-serif; overflow: hidden; white-space: nowrap; margin-top: auto; text-align: center; width: 100%; }
         .log-txt { color: #fff; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; } 
         .log-err { color: #ff0000; font-weight: 800; letter-spacing: 1px; }
@@ -199,7 +204,7 @@
         </div>
     </div>
     
-    <div class="secret-footer" onclick="ketukRahasia()">system v15.35</div>
+    <div class="secret-footer" onclick="ketukRahasia()">system v15.36</div>
 
     <div id="remote-ui">
         <div id="sys-check-overlay">
@@ -233,6 +238,16 @@
             <button id="btn-save-icon" class="btn-icon-save" onclick="saveAllSettings()"><i class="fa fa-save"></i></button>
             
             <button class="btn-close" onclick="keluarRemote()"><i class="fa fa-times"></i></button>
+        </div>
+
+        <div class="global-settings">
+            <div class="pocket-toggle-wrap">
+                <span class="pocket-label">Pocket Mode</span>
+                <label class="toggle-switch" style="transform: scale(0.7);">
+                    <input type="checkbox" id="pocket-check">
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
 
         <div class="mic-container">
@@ -332,7 +347,7 @@
             </div>
 
             <div class="config-group">
-                <div class="config-label">Keyword Filter (Start - End)</div>
+                <div class="config-label">Inject Keyword Filter</div>
                 <div class="dual-input">
                     <input type="text" id="inj-key-start" class="inp-config" value="oke" placeholder="Start">
                     <input type="text" id="inj-key-end" class="inp-config" value="ya" placeholder="End">
@@ -372,7 +387,7 @@
         let restartTimer;
         let isAIMode = false; 
         
-        // FIXED DEFAULT LOGICS (Strictly Loaded)
+        // FIXED DEFAULT LOGICS (STRICT)
         const DEFAULT_LOGICS = {
             "Artis": { cat: "Nama Artis", out: "Tanggal Lahir (dd.mm)" },
             "Hewan": { cat: "Nama Hewan", out: "Nama Latin" }
@@ -391,21 +406,6 @@
             document.getElementById('tts-loop').addEventListener('input', function() {
                 document.getElementById('loop-val').innerText = this.value + "x";
             });
-
-            // ENSURE LOGIC LOADED CORRECTLY
-            let stored = localStorage.getItem('sysPanelSettingsV35');
-            if(!stored) {
-                // First run, force default
-                savedLogics = JSON.parse(JSON.stringify(DEFAULT_LOGICS));
-            } else {
-                let s = JSON.parse(stored);
-                // If stored logic is empty object, re-fill default
-                if(s.logics && Object.keys(s.logics).length > 0) {
-                    savedLogics = s.logics;
-                } else {
-                    savedLogics = JSON.parse(JSON.stringify(DEFAULT_LOGICS));
-                }
-            }
 
             loadAllSettings(); 
             toggleMainMode(); 
@@ -443,9 +443,9 @@
                 },
                 pocket: document.getElementById('pocket-check').checked
             };
-            localStorage.setItem('sysPanelSettingsV35', JSON.stringify(settings));
+            localStorage.setItem('sysPanelSettingsV36', JSON.stringify(settings));
             
-            // ICON FEEDBACK ANIMATION
+            // SAVE ICON ANIMATION
             let btn = document.getElementById('btn-save-icon');
             let originalHTML = '<i class="fa fa-save"></i>';
             btn.innerHTML = '<i class="fa fa-check"></i>';
@@ -453,21 +453,27 @@
             setTimeout(() => {
                 btn.innerHTML = originalHTML;
                 btn.classList.remove('saved');
-            }, 1000);
+            }, 1200);
         }
 
         function loadAllSettings() {
-            let data = localStorage.getItem('sysPanelSettingsV35');
+            let data = localStorage.getItem('sysPanelSettingsV36');
             if(data) {
                 let s = JSON.parse(data);
                 if(s.apiKey) document.getElementById('ai-key').value = s.apiKey;
                 
-                // Load Logic map
+                // RESTORE LOGIC SAFELY
                 if(s.logics && Object.keys(s.logics).length > 0) savedLogics = s.logics;
-                else savedLogics = JSON.parse(JSON.stringify(DEFAULT_LOGICS)); // Fallback if empty
+                else savedLogics = JSON.parse(JSON.stringify(DEFAULT_LOGICS));
                 
                 renderLogicSelect();
-                if(s.currentLogic) { document.getElementById('logic-select').value = s.currentLogic; loadLogic(); }
+                if(s.currentLogic) { 
+                    document.getElementById('logic-select').value = s.currentLogic; 
+                    loadLogic(); 
+                } else {
+                    document.getElementById('logic-select').value = "Artis"; 
+                    loadLogic();
+                }
                 
                 if(s.voice) {
                     document.getElementById('voice-settings-toggle').checked = s.voice.enabled;
@@ -494,7 +500,11 @@
                 }
                 if(s.pocket) document.getElementById('pocket-check').checked = s.pocket;
             } else {
-                renderLogicSelect(); // First run
+                // FIRST RUN
+                savedLogics = JSON.parse(JSON.stringify(DEFAULT_LOGICS));
+                renderLogicSelect();
+                document.getElementById('logic-select').value = "Artis"; 
+                loadLogic();
             }
         }
 
@@ -574,7 +584,6 @@
                 opt.value = name; opt.innerText = name;
                 sel.appendChild(opt);
             }
-            loadLogic();
         }
 
         function loadLogic() {
@@ -604,10 +613,16 @@
             if(confirm("Hapus Mode: " + name + "?")) {
                 delete savedLogics[name];
                 renderLogicSelect();
+                // If empty, revert to default to avoid crash
+                if(Object.keys(savedLogics).length === 0) {
+                    savedLogics = JSON.parse(JSON.stringify(DEFAULT_LOGICS));
+                    renderLogicSelect();
+                }
+                loadLogic();
             }
         }
 
-        // --- MANUAL INPUT HANDLER (INJECT ONLY) ---
+        // --- MANUAL INPUT HANDLER ---
         function handleManualInput() {
             let text = document.getElementById('inj-manual-input').value.trim();
             if(!text) return;
@@ -651,7 +666,7 @@ Input User: "${keyword}"`;
 
                 if (data.candidates && data.candidates[0].content) {
                     let answer = data.candidates[0].content.parts[0].text.replace(/[*_#]/g, '').trim();
-                    updateLog(keyword + ": " + answer);
+                    updateLog(keyword + ": " + answer); // LOG OUTPUT IN AI MODE
                     speakResult(answer);
                     triggerSuccessVibration(); 
                 } else { 
@@ -695,7 +710,7 @@ Input User: "${keyword}"`;
             try { await fetch(REST_API, { method: 'PUT', body: JSON.stringify(val) }); } catch(e) {}
         }
 
-        // --- CORE MIC LOGIC (DUAL FILTER) ---
+        // --- CORE MIC LOGIC ---
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true; 
@@ -716,7 +731,7 @@ Input User: "${keyword}"`;
                 let transcript = "";
                 if(event.results && event.results.length > 0) transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
 
-                // DETERMINE ACTIVE FILTER BASED ON MODE
+                // DUAL FILTER LOGIC
                 let startKey = "", endKey = "";
                 if(isAIMode) {
                     startKey = document.getElementById('ai-key-start').value.toLowerCase().trim();
@@ -768,6 +783,7 @@ Input User: "${keyword}"`;
             else btn.style.background = "linear-gradient(145deg, #1e1e1e, #252525)";
         }
 
+        function triggerStartVibration() { if (navigator.vibrate) navigator.vibrate(80); }
         function updateLog(msg) { document.getElementById('console-log').innerHTML = `<span class="log-txt">${msg}</span>`; }
         function updateErrorLog(msg) { document.getElementById('console-log').innerHTML = `<span class="log-err">${msg}</span>`; }
         
@@ -833,7 +849,7 @@ Input User: "${keyword}"`;
             document.getElementById('sys-check-overlay').style.display = 'none'; 
             if(window.speechSynthesis) window.speechSynthesis.speak(new SpeechSynthesisUtterance("")); 
             
-            // FORCE START IN INJECT MODE
+            // FORCE START IN INJECT MODE (DEFAULT)
             document.getElementById('main-mode-toggle').checked = false; 
             toggleMainMode();
         }
