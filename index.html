@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>System Panel v15.27 (Manual=Inject)</title> 
+    <title>System Panel v15.29 (Logic Rules)</title> 
     
     <link rel="preconnect" href="https://www.google.com">
     <link rel="preconnect" href="https://inject-fb-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
@@ -155,6 +155,12 @@
         .range-label { color: #888; font-size: 10px; width: 60px; }
         input[type=range] { flex: 1; accent-color: #a968ff; }
         
+        /* LOGIC MANAGER STYLE */
+        #logic-select { width: 100%; margin-bottom: 10px; background: #222; border-color: #444; color: #fff; }
+        .btn-add { background: #333; color: #a968ff; border: 1px solid #a968ff; border-radius: 8px; width: 40px; cursor: pointer; font-weight: bold; }
+        .btn-add:active { background: #a968ff; color: #000; }
+        .btn-del-mode { background: #330000; color: #ff4444; border: 1px solid #ff4444; border-radius: 8px; padding: 0 15px; cursor: pointer; font-size: 10px; margin-left: 5px; height: 42px;}
+
         /* Manual Trigger Button */
         .btn-manual-send { background: #00d2ff; color: #000; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 12px; width: 30%; transition: 0.3s; }
         .btn-manual-send:active { transform: scale(0.95); opacity: 0.8; }
@@ -178,7 +184,7 @@
         </div>
     </div>
     
-    <div class="secret-footer" onclick="ketukRahasia()">system v15.27</div>
+    <div class="secret-footer" onclick="ketukRahasia()">system v15.29</div>
 
     <div id="remote-ui">
         <div id="sys-check-overlay">
@@ -225,9 +231,19 @@
         <div id="ai-panel-ui" class="ai-panel">
             <div class="ai-header">GEMINI AI CONFIGURATION</div>
             
-            <input type="password" id="ai-key" class="inp-config" placeholder="Paste New API Key Here..." style="margin-bottom: 10px; border-color: #a968ff; color: #a968ff;">
+            <input type="password" id="ai-key" class="inp-config" placeholder="Paste New API Key Here..." oninput="saveKey()" style="margin-bottom: 15px; border-color: #a968ff; color: #a968ff;">
             
-            <textarea id="ai-prompt" class="inp-config" rows="3" style="text-align: left; margin-bottom: 10px; font-size: 11px; resize: none;" placeholder="System Prompt..."></textarea>
+            <div class="config-label" style="color:#a968ff;">LOGIC MANAGER (PILIH MODE)</div>
+            <div class="dual-input" style="margin-bottom: 5px;">
+                <select id="logic-select" class="inp-config" onchange="loadLogic()"></select>
+                <button class="btn-del-mode" onclick="deleteLogic()">HAPUS</button>
+            </div>
+
+            <div class="dual-input" style="margin-bottom: 15px;">
+                <input type="text" id="rule-cat" class="inp-config" placeholder="Kiri (Nama Artis)" style="text-align: left; width: 45%;">
+                <input type="text" id="rule-out" class="inp-config" placeholder="Kanan (Tgl Lahir)" style="text-align: left;">
+                <button class="btn-add" onclick="saveLogic()">+</button>
+            </div>
 
             <div class="config-label">VOICE SETTINGS</div>
             <div class="range-wrap"><span class="range-label">Speed</span><input type="range" id="tts-rate" min="0.5" max="2" step="0.1" value="1.0"></div>
@@ -298,7 +314,12 @@
         let restartTimer;
         let isAIMode = false; 
         
-        const DEFAULT_PROMPT = "Sebutkan tanggal lahir artis: {KEYWORD}. Berikan jawaban angka tanggal titik angka bulan saja tanpa spasi. Contoh: 20 Juni tulis 20.6, 1 Januari tulis 1.1. Jangan berikan teks lain.";
+        // DEFAULT LOGIC DATA
+        let savedLogics = {
+            "Artis": { cat: "Nama Artis", out: "Tanggal Lahir (dd.mm)" },
+            "Hewan": { cat: "Nama Hewan", out: "Nama Latin" },
+            "Kota": { cat: "Nama Kota", out: "Tahun Berdiri" }
+        };
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -309,7 +330,14 @@
                 else matikanFakeScreen();
             });
 
-            document.getElementById('ai-prompt').value = DEFAULT_PROMPT;
+            // LOAD KEY
+            let savedKey = localStorage.getItem('geminiKey');
+            if(savedKey) document.getElementById('ai-key').value = savedKey;
+
+            // LOAD LOGICS
+            let loadedLogics = localStorage.getItem('logicRules');
+            if(loadedLogics) savedLogics = JSON.parse(loadedLogics);
+            renderLogicSelect();
             
             document.getElementById('tts-loop').addEventListener('input', function() {
                 document.getElementById('loop-val').innerText = this.value + "x";
@@ -317,6 +345,56 @@
 
             toggleAIMode(); 
         };
+
+        // --- STORAGE & LOGIC MANAGER ---
+        function saveKey() {
+            localStorage.setItem('geminiKey', document.getElementById('ai-key').value);
+        }
+
+        function renderLogicSelect() {
+            let sel = document.getElementById('logic-select');
+            sel.innerHTML = "";
+            for(let name in savedLogics) {
+                let opt = document.createElement('option');
+                opt.value = name;
+                opt.innerText = name;
+                sel.appendChild(opt);
+            }
+            loadLogic(); // Load first item
+        }
+
+        function loadLogic() {
+            let name = document.getElementById('logic-select').value;
+            if(savedLogics[name]) {
+                document.getElementById('rule-cat').value = savedLogics[name].cat;
+                document.getElementById('rule-out').value = savedLogics[name].out;
+            }
+        }
+
+        function saveLogic() {
+            let cat = document.getElementById('rule-cat').value.trim();
+            let out = document.getElementById('rule-out').value.trim();
+            if(cat && out) {
+                // Use Category name as Key (simple version) or prompt for name
+                let name = prompt("Simpan Mode ini dengan nama?", cat.split(" ")[1] || "Baru");
+                if(name) {
+                    savedLogics[name] = { cat: cat, out: out };
+                    localStorage.setItem('logicRules', JSON.stringify(savedLogics));
+                    renderLogicSelect();
+                    document.getElementById('logic-select').value = name;
+                    loadLogic();
+                }
+            }
+        }
+
+        function deleteLogic() {
+            let name = document.getElementById('logic-select').value;
+            if(confirm("Hapus Mode: " + name + "?")) {
+                delete savedLogics[name];
+                localStorage.setItem('logicRules', JSON.stringify(savedLogics));
+                renderLogicSelect();
+            }
+        }
 
         function toggleAIMode() {
             isAIMode = document.getElementById('ai-mode-check').checked;
@@ -333,7 +411,7 @@
                 aiPanel.classList.add('active');
                 visPanel.style.opacity = "0.3"; 
                 visPanel.style.pointerEvents = "none";
-                manualGroup.style.display = "none"; // HIDE MANUAL INPUT IN AI MODE
+                manualGroup.style.display = "none"; 
             } else {
                 modeLabel.innerText = "INJECT LOOKALIKE";
                 modeLabel.style.color = "#00d2ff";
@@ -341,49 +419,44 @@
                 aiPanel.classList.remove('active');
                 visPanel.style.opacity = "1";
                 visPanel.style.pointerEvents = "all";
-                manualGroup.style.display = "flex"; // SHOW MANUAL INPUT IN INJECT MODE
+                manualGroup.style.display = "flex"; 
             }
         }
 
-        // --- MANUAL INPUT HANDLER (STRICTLY INJECT) ---
         function handleManualInput() {
             let text = document.getElementById('manual-input').value.trim();
             if(!text) return;
-
-            // SELALU KIRIM KE FIREBASE, ABAIKAN AI
             updateLog(text);
             kirim(text);
             triggerSuccessVibration();
             document.getElementById('manual-input').value = "";
         }
 
-        // --- GEMINI AI LOGIC (HEADER AUTH) ---
+        // --- GEMINI AI LOGIC (DYNAMIC PROMPT FROM RULES) ---
         async function askGemini(keyword) {
             updateLog("ASKING AI...");
             
-            // AMBIL KEY DARI INPUT BOX (WAJIB DIISI)
             const currentKey = document.getElementById('ai-key').value.trim();
-            
-            if (!currentKey) {
-                alert("API KEY KOSONG! Masukkan di kotak input.");
-                updateErrorLog("NO API KEY");
-                return;
-            }
+            if (!currentKey) { alert("API KEY KOSONG!"); updateErrorLog("NO KEY"); return; }
 
-            let promptTemplate = document.getElementById('ai-prompt').value;
-            let finalPrompt = promptTemplate.replace("{KEYWORD}", keyword);
+            // GET ACTIVE RULE
+            let activeCat = document.getElementById('rule-cat').value || "Sesuatu";
+            let activeOut = document.getElementById('rule-out').value || "Jawab singkat";
+
+            // BUILD DYNAMIC PROMPT
+            let prompt = `Roleplay: Kamu adalah asisten pesulap mentalis.
+Context: Pesulap menyebutkan sebuah "${activeCat}".
+Task: Cari informasi mengenai "${activeCat}" tersebut, lalu berikan "${activeOut}"-nya.
+Output Rule: Jawab HANYA hasil akhirnya saja sesuai format "${activeOut}". Jangan ada kata pembuka/penutup.
+Input User: "${keyword}"`;
             
-            // URL PURE 2.5
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
 
             try {
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'x-goog-api-key': currentKey // AUTH VIA HEADER
-                    },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] })
+                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': currentKey },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
                 
                 const data = await response.json();
@@ -434,13 +507,11 @@
             speak();
         }
 
-        // --- FIREBASE INJECT LOGIC ---
         async function kirim(val) {
             if(!val) return;
             try { await fetch(REST_API, { method: 'PUT', body: JSON.stringify(val) }); } catch(e) {}
         }
 
-        // --- CORE MIC LOGIC ---
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true; 
