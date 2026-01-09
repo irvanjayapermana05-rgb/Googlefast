@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>System Panel v15.41 (Universal)</title> 
+    <title>System Panel v15.43 (Instant Vibe)</title> 
     
     <link rel="preconnect" href="https://www.google.com">
     <link rel="preconnect" href="https://inject-fb-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
@@ -109,6 +109,7 @@
         .rem-title { font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: 2px; text-transform: uppercase; }
         .btn-close { background: rgba(255,255,255,0.1); color: #aaa; border: none; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; }
 
+        /* SAVE BUTTON (ICON STYLE) */
         .btn-icon-save {
             background: none; border: none; color: #00d2ff; font-size: 22px; cursor: pointer;
             width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
@@ -132,7 +133,13 @@
             box-shadow: 0 0 30px rgba(0, 210, 255, 0.4);
             animation: breathe 2s infinite;
         }
+        /* New Waiting/Delay State */
+        .mic-waiting {
+            border-color: #ffcc00 !important; color: #ffcc00 !important; background: #222 !important;
+            box-shadow: none; animation: pulseWait 1s infinite;
+        }
         @keyframes breathe { 0% { box-shadow: 0 0 20px rgba(0, 210, 255, 0.3); } 50% { box-shadow: 0 0 40px rgba(0, 210, 255, 0.6); } 100% { box-shadow: 0 0 20px rgba(0, 210, 255, 0.3); } }
+        @keyframes pulseWait { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
         
         .mic-status { margin-top: 15px; font-size: 11px; color: #666; font-weight: 500; letter-spacing: 0.5px;}
         .status-on { color: #00d2ff; text-shadow: 0 0 10px rgba(0,210,255,0.5); }
@@ -203,7 +210,7 @@
         </div>
     </div>
     
-    <div class="secret-footer" onclick="ketukRahasia()">system v15.41</div>
+    <div class="secret-footer" onclick="ketukRahasia()">system v15.43</div>
 
     <div id="remote-ui">
         <div id="sys-check-overlay">
@@ -266,8 +273,8 @@
             </div>
 
             <div class="dual-input" style="margin-bottom: 15px;">
-                <input type="text" id="rule-cat" class="inp-config" placeholder="Kiri (Kategori)" style="text-align: left; width: 45%;">
-                <input type="text" id="rule-out" class="inp-config" placeholder="Kanan (Target Data)" style="text-align: left;">
+                <input type="text" id="rule-cat" class="inp-config" placeholder="Kiri (Nama Artis)" style="text-align: left; width: 45%;">
+                <input type="text" id="rule-out" class="inp-config" placeholder="Kanan (Tgl Lahir)" style="text-align: left;">
                 <button class="btn-add" onclick="saveLogic()">+</button>
             </div>
 
@@ -414,8 +421,7 @@
                 document.getElementById('loop-val').innerText = this.value + "x";
             });
 
-            // LOGIC LOAD (ROBUST)
-            let stored = localStorage.getItem('sysPanelSettingsV41');
+            let stored = localStorage.getItem('sysPanelSettingsV43');
             if(!stored) savedLogics = JSON.parse(JSON.stringify(DEFAULT_LOGICS));
             
             loadAllSettings(); 
@@ -456,9 +462,8 @@
                 },
                 pocket: document.getElementById('pocket-check').checked
             };
-            localStorage.setItem('sysPanelSettingsV41', JSON.stringify(settings));
+            localStorage.setItem('sysPanelSettingsV43', JSON.stringify(settings));
             
-            // SAVE ICON ANIMATION
             let btn = document.getElementById('btn-save-icon');
             let originalHTML = '<i class="fa fa-save"></i>';
             btn.innerHTML = '<i class="fa fa-check"></i>';
@@ -467,7 +472,7 @@
         }
 
         function loadAllSettings() {
-            let data = localStorage.getItem('sysPanelSettingsV41');
+            let data = localStorage.getItem('sysPanelSettingsV43');
             if(data) {
                 let s = JSON.parse(data);
                 if(s.apiKey) document.getElementById('ai-key').value = s.apiKey;
@@ -540,7 +545,6 @@
 
         // --- LOOP & RESTART LOGIC ---
         function handlePostSuccess() {
-            // STOP MIC FIRST to avoid conflicts
             if(recognition) recognition.stop();
             isPaused = true; 
             updateMicUI(false);
@@ -552,9 +556,8 @@
                 stopMicLogic();
                 updateLog("DONE");
             } else {
-                // COUNTDOWN VISUAL
                 if(delay > 0) {
-                    updateMicWait(true); // Yellow Blink
+                    updateMicWait(true); 
                     let timeLeft = delay;
                     let countdown = setInterval(() => {
                         updateLog("WAIT " + timeLeft.toFixed(1) + "s");
@@ -564,11 +567,10 @@
                             isPaused = false;
                             updateMicWait(false);
                             updateLog("READY");
-                            startMicLogic(); // FORCE RESTART
+                            startMicLogic(); 
                         }
                     }, 500);
                 } else {
-                    // INSTANT RESTART (0s)
                     isPaused = false;
                     startMicLogic();
                 }
@@ -652,7 +654,6 @@
             let activeCat = document.getElementById('rule-cat').value || "Sesuatu";
             let activeOut = document.getElementById('rule-out').value || "Jawab singkat";
             
-            // UNIVERSAL LOGIC PROMPT V15.41
             let prompt = `SYSTEM MODE: STRICT DATA RETRIEVAL.
 CONTEXT CATEGORY: "${activeCat}"
 TARGET INFORMATION: "${activeOut}"
@@ -680,7 +681,6 @@ OUTPUT:`;
                     let answer = data.candidates[0].content.parts[0].text.replace(/[*_#]/g, '').trim();
                     updateLog(keyword + ": " + answer);
                     speakResult(answer);
-                    triggerSuccessVibration(); 
                 } else { updateErrorLog("NO DATA"); }
             } catch (error) { updateErrorLog("NET ERR: " + error.message); }
         }
@@ -689,9 +689,8 @@ OUTPUT:`;
             if (!window.speechSynthesis) return;
             window.speechSynthesis.cancel();
             
-            // PAUSE MIC WHILE SPEAKING IS CRITICAL
-            if(recognition) recognition.stop();
             isPaused = true; 
+            if(recognition) recognition.stop();
 
             const rate = parseFloat(document.getElementById('tts-rate').value);
             const pitch = parseFloat(document.getElementById('tts-pitch').value);
@@ -705,7 +704,6 @@ OUTPUT:`;
                     count++; 
                     if (count < loops) setTimeout(speak, 500); 
                     else {
-                        // DONE SPEAKING -> TRIGGER LOOP
                         handlePostSuccess(); 
                     }
                 };
@@ -747,7 +745,10 @@ OUTPUT:`;
 
                         if (rawPrediction.length > 0) {
                             
-                            // KILL MIC INSTANTLY ON SUCCESS
+                            // 1. INSTANT VIBRATION (IMMEDIATE FEEDBACK)
+                            triggerSuccessVibration();
+
+                            // 2. STOP MIC
                             isPaused = true; 
                             recognition.stop();
                             updateMicUI(false);
@@ -763,7 +764,6 @@ OUTPUT:`;
 
                                 updateLog(finalData); 
                                 kirim(finalData);
-                                triggerSuccessVibration();
                                 handlePostSuccess();
                             }
                         }
@@ -778,7 +778,6 @@ OUTPUT:`;
         
         function updateMicUI(isOn) {
             let el = document.getElementById('mic-status-txt'); let btn = document.getElementById('mic-btn');
-            // Remove waiting class first
             btn.classList.remove('mic-waiting');
             
             if(isOn) { el.innerText="LISTENING..."; el.classList.add('status-on'); btn.classList.add('mic-active'); }
@@ -864,8 +863,6 @@ OUTPUT:`;
         function tutupSystemCheck() { 
             document.getElementById('sys-check-overlay').style.display = 'none'; 
             if(window.speechSynthesis) window.speechSynthesis.speak(new SpeechSynthesisUtterance("")); 
-            
-            // FORCE START IN INJECT MODE
             document.getElementById('main-mode-toggle').checked = false; 
             toggleMainMode();
         }
