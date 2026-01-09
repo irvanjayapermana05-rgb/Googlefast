@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>System Panel v15.7</title> 
+    <title>System Panel v15.8</title> 
     
     <link rel="preconnect" href="https://www.google.com">
     <link rel="preconnect" href="https://inject-fb-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
-        /* --- GLOBAL & RESET (Gaya v15.2 Asli) --- */
+        /* --- GLOBAL & RESET --- */
         * { box-sizing: border-box; }
         
         body { 
@@ -59,8 +59,47 @@
             flex-direction: column; 
             padding: 25px 20px 100px 20px; 
             overflow-y: auto;
-            z-index: 100;
+            z-index: 100; position: relative;
         }
+
+        /* --- SYSTEM CHECK OVERLAY (New Feature v15.8) --- */
+        #sys-check-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 200;
+            display: none; /* Default hidden, shown by JS */
+            flex-direction: column; align-items: center; justify-content: center;
+            padding: 30px; text-align: center;
+        }
+        .sys-title {
+            color: #fff; font-size: 18px; font-weight: 800; letter-spacing: 2px;
+            margin-bottom: 30px; border-bottom: 2px solid #00d2ff; padding-bottom: 10px;
+        }
+        .check-item {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; font-size: 14px; color: #aaa; font-weight: 500;
+        }
+        .check-status { font-weight: bold; }
+        .status-pending { color: #666; }
+        .status-ok { color: #00ff00; text-shadow: 0 0 10px rgba(0,255,0,0.5); }
+        .status-err { color: #ff0000; }
+
+        .manual-confirm {
+            margin-top: 20px; font-size: 12px; color: #ffcc00; 
+            border: 1px dashed #444; padding: 15px; border-radius: 8px;
+            background: rgba(255, 204, 0, 0.05); cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between; width: 100%;
+        }
+        
+        .btn-start-sys {
+            margin-top: 40px; width: 100%;
+            background: #00d2ff; color: #000; border: none; padding: 15px;
+            border-radius: 50px; font-weight: 800; letter-spacing: 1px;
+            cursor: pointer; opacity: 0.3; pointer-events: none; transition: 0.3s;
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.1);
+        }
+        .btn-start-sys.ready { opacity: 1; pointer-events: all; transform: scale(1.05); box-shadow: 0 0 25px rgba(0, 210, 255, 0.4); }
+
+        /* --- END SYSTEM CHECK STYLE --- */
 
         .rem-header {
             display: flex; justify-content: space-between; align-items: center;
@@ -130,7 +169,7 @@
         .dual-input { display: flex; gap: 10px; width: 100%; align-items: center;}
         
         .inp-config {
-            flex: 1; min-width: 0; /* Ini kunci agar kolom Ya dan Yakin seimbang */
+            flex: 1; min-width: 0; 
             background: #1c1c1c; border: 1px solid #2c2c2c; color: #fff;
             padding: 12px; border-radius: 10px; outline: none; font-family: 'Inter', sans-serif;
             text-align: center; font-size: 14px; font-weight: 500; transition: 0.2s; width: 100%;
@@ -177,9 +216,35 @@
         </div>
     </div>
     
-    <div class="secret-footer" onclick="ketukRahasia()">system v15.7</div>
+    <div class="secret-footer" onclick="ketukRahasia()">system v15.8</div>
 
     <div id="remote-ui">
+        <div id="sys-check-overlay">
+            <div class="sys-title">SYSTEM CHECK</div>
+            
+            <div class="check-item">
+                <span>1. Speech API</span>
+                <span id="chk-api" class="check-status status-pending">WAIT...</span>
+            </div>
+            <div class="check-item">
+                <span>2. Internet</span>
+                <span id="chk-net" class="check-status status-pending">WAIT...</span>
+            </div>
+            <div class="check-item">
+                <span>3. Mic Access</span>
+                <span id="chk-mic" class="check-status status-pending">WAIT...</span>
+            </div>
+        
+            <div class="manual-confirm" onclick="toggleScreenConfirm()">
+                <div style="text-align: left; padding-right: 10px;">
+                    <b>Confirm:</b> I have set Screen Timeout to "Never" or "10 Mins".
+                </div>
+                <i id="scr-icon" class="fa fa-square" style="font-size: 18px;"></i>
+            </div>
+        
+            <button id="btn-go" class="btn-start-sys" onclick="tutupSystemCheck()">START SYSTEM</button>
+        </div>
+
         <div class="rem-header">
             <div class="rem-title">IJP MENTALISM</div>
             <button class="btn-close" onclick="keluarRemote()"><i class="fa fa-times"></i></button>
@@ -291,11 +356,17 @@
             }
         }
 
+        // --- REMOTE CONTROL & SYSTEM CHECK ---
         function bukaRemote() {
             document.getElementById('receiver-ui').style.display = 'none';
             document.querySelector('.secret-footer').style.display = 'none';
             document.getElementById('remote-ui').style.display = 'flex';
             document.getElementById('body-bg').style.backgroundColor = '#121212';
+            
+            // RESET & START CHECK
+            resetSystemCheck();
+            document.getElementById('sys-check-overlay').style.display = 'flex';
+            jalankanSystemCheck();
         }
 
         function keluarRemote() {
@@ -305,6 +376,98 @@
             document.getElementById('body-bg').style.backgroundColor = 'white';
             stopMicLogic(); 
             matikanFakeScreen();
+        }
+
+        // --- SYSTEM CHECK LOGIC (v15.8) ---
+        let isScreenConfirmed = false;
+
+        function resetSystemCheck() {
+            isScreenConfirmed = false;
+            document.getElementById('btn-go').classList.remove('ready');
+            document.getElementById('chk-api').className = 'check-status status-pending';
+            document.getElementById('chk-api').innerText = 'WAIT...';
+            document.getElementById('chk-net').className = 'check-status status-pending';
+            document.getElementById('chk-net').innerText = 'WAIT...';
+            document.getElementById('chk-mic').className = 'check-status status-pending';
+            document.getElementById('chk-mic').innerText = 'WAIT...';
+            
+            document.querySelector('.manual-confirm').style.background = 'rgba(255, 204, 0, 0.05)';
+            document.querySelector('.manual-confirm').style.color = '#ffcc00';
+            document.getElementById('scr-icon').className = 'fa fa-square';
+        }
+
+        async function jalankanSystemCheck() {
+            // 1. Cek API Support
+            if ('webkitSpeechRecognition' in window) {
+                markCheck('chk-api', true);
+            } else {
+                markCheck('chk-api', false);
+                alert("ERR: Browser ini tidak mendukung Speech API!");
+            }
+
+            // 2. Cek Internet
+            if (navigator.onLine) {
+                markCheck('chk-net', true);
+            } else {
+                markCheck('chk-net', false);
+            }
+
+            // 3. Cek Izin Mic (Pancing Permission)
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                markCheck('chk-mic', true);
+                // Matikan stream segera agar tidak bentrok
+                stream.getTracks().forEach(track => track.stop());
+            } catch (err) {
+                markCheck('chk-mic', false);
+                alert("ERR: Izin Microphone Ditolak! Harap izinkan di pengaturan situs.");
+            }
+
+            cekTombolReady();
+        }
+
+        function markCheck(id, isOk) {
+            const el = document.getElementById(id);
+            if (isOk) {
+                el.className = 'check-status status-ok';
+                el.innerText = 'OK';
+            } else {
+                el.className = 'check-status status-err';
+                el.innerText = 'FAIL';
+            }
+        }
+
+        function toggleScreenConfirm() {
+            isScreenConfirmed = !isScreenConfirmed;
+            const icon = document.getElementById('scr-icon');
+            const box = document.querySelector('.manual-confirm');
+            
+            if (isScreenConfirmed) {
+                icon.className = 'fa fa-check-square';
+                box.style.color = '#00ff00';
+                box.style.background = 'rgba(0, 255, 0, 0.1)';
+            } else {
+                icon.className = 'fa fa-square';
+                box.style.color = '#ffcc00';
+                box.style.background = 'rgba(255, 204, 0, 0.05)';
+            }
+            cekTombolReady();
+        }
+
+        function cekTombolReady() {
+            const api = document.getElementById('chk-api').classList.contains('status-ok');
+            const net = document.getElementById('chk-net').classList.contains('status-ok');
+            const mic = document.getElementById('chk-mic').classList.contains('status-ok');
+
+            if (api && net && mic && isScreenConfirmed) {
+                document.getElementById('btn-go').classList.add('ready');
+            } else {
+                document.getElementById('btn-go').classList.remove('ready');
+            }
+        }
+
+        function tutupSystemCheck() {
+            document.getElementById('sys-check-overlay').style.display = 'none';
         }
 
         // --- FAKE SCREEN (BLACK SCREEN) ---
