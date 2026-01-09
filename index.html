@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>System Panel v15.44 (Log Fix)</title> 
+    <title>System Panel v15.45 (Pure Log)</title> 
     
     <link rel="preconnect" href="https://www.google.com">
     <link rel="preconnect" href="https://inject-fb-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
@@ -208,7 +208,7 @@
         </div>
     </div>
     
-    <div class="secret-footer" onclick="ketukRahasia()">system v15.44</div>
+    <div class="secret-footer" onclick="ketukRahasia()">system v15.45</div>
 
     <div id="remote-ui">
         <div id="sys-check-overlay">
@@ -418,7 +418,7 @@
                 document.getElementById('loop-val').innerText = this.value + "x";
             });
 
-            let stored = localStorage.getItem('sysPanelSettingsV44');
+            let stored = localStorage.getItem('sysPanelSettingsV45');
             if(!stored) savedLogics = JSON.parse(JSON.stringify(DEFAULT_LOGICS));
             
             loadAllSettings(); 
@@ -459,7 +459,7 @@
                 },
                 pocket: document.getElementById('pocket-check').checked
             };
-            localStorage.setItem('sysPanelSettingsV44', JSON.stringify(settings));
+            localStorage.setItem('sysPanelSettingsV45', JSON.stringify(settings));
             
             let btn = document.getElementById('btn-save-icon');
             let originalHTML = '<i class="fa fa-save"></i>';
@@ -469,7 +469,7 @@
         }
 
         function loadAllSettings() {
-            let data = localStorage.getItem('sysPanelSettingsV44');
+            let data = localStorage.getItem('sysPanelSettingsV45');
             if(data) {
                 let s = JSON.parse(data);
                 if(s.apiKey) document.getElementById('ai-key').value = s.apiKey;
@@ -538,24 +538,22 @@
         function toggleInjVibe() { document.getElementById('inj-vibe-box').style.display = document.getElementById('inj-haptic-check').checked ? 'flex' : 'none'; }
         function toggleVoiceSettings() { document.getElementById('voice-controls-box').style.display = document.getElementById('voice-settings-toggle').checked ? 'block' : 'none'; }
 
-        // --- LOOP & RESTART LOGIC (SEPARATED STATUS UI) ---
+        // --- LOOP & RESTART LOGIC ---
         function handlePostSuccess() {
             if(recognition) recognition.stop();
             isPaused = true; 
-            // DO NOT update bottom log here!
             
             let isLoop = isAIMode ? document.getElementById('ai-loop-check').checked : document.getElementById('inj-loop-check').checked;
             let delay = isAIMode ? (parseFloat(document.getElementById('ai-delay-val').value) || 0) : (parseFloat(document.getElementById('inj-delay-val').value) || 0);
 
             if(!isLoop) {
                 stopMicLogic();
-                // Status to top UI
+                // STATUS ONLY (NOT BOTTOM LOG)
                 document.getElementById('mic-status-txt').innerText = "DONE";
             } else {
                 if(delay > 0) {
                     updateMicWait(true); 
                     let timeLeft = delay;
-                    // Initial wait msg
                     document.getElementById('mic-status-txt').innerText = "WAIT " + timeLeft.toFixed(1) + "s";
                     
                     let countdown = setInterval(() => {
@@ -565,7 +563,7 @@
                         if(timeLeft < 0) {
                             clearInterval(countdown);
                             isPaused = false;
-                            updateMicWait(false); // Green again
+                            updateMicWait(false);
                             document.getElementById('mic-status-txt').innerText = "READY";
                             startMicLogic(); 
                         }
@@ -594,6 +592,7 @@
             navigator.vibrate(pattern);
         }
 
+        // --- LOGIC MANAGER ---
         function renderLogicSelect() {
             let sel = document.getElementById('logic-select');
             sel.innerHTML = "";
@@ -713,7 +712,7 @@ OUTPUT:`;
 
         async function kirim(val) { try { await fetch(REST_API, { method: 'PUT', body: JSON.stringify(val) }); } catch(e) {} }
 
-        // --- CORE MIC (INSTANT VIBE & SEPARATED LOGS) ---
+        // --- CORE MIC ---
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true; recognition.interimResults = false; recognition.lang = 'id-ID';
@@ -744,14 +743,11 @@ OUTPUT:`;
 
                         if (rawPrediction.length > 0) {
                             
-                            // 1. INSTANT VIBRATION
                             triggerSuccessVibration();
 
-                            // 2. STOP MIC
                             isPaused = true; 
                             recognition.stop();
-                            
-                            // 3. UI FEEDBACK (Top Status Only)
+                            // UPDATE STATUS UI ONLY (NOT LOG)
                             document.getElementById('mic-status-txt').innerText = "PROCESSING...";
                             document.getElementById('mic-btn').classList.remove('mic-active');
 
@@ -763,11 +759,8 @@ OUTPUT:`;
                                 if (mode === 'reverse') finalData = rawPrediction.toLowerCase().split('').reverse().join('');
                                 else if (mode === 'alay') finalData = rawPrediction.toLowerCase().replace(/a/g,'4').replace(/e/g,'3').replace(/i/g,'1').replace(/o/g,'0').replace(/s/g,'5');
 
-                                // 4. BOTTOM LOG (Persistent)
-                                updateLog(finalData); 
+                                updateLog(finalData); // LOG RESULT HERE
                                 kirim(finalData);
-                                
-                                // 5. LOOP HANDLER (Uses Top Status for WAIT)
                                 handlePostSuccess();
                             }
                         }
@@ -866,8 +859,6 @@ OUTPUT:`;
         function tutupSystemCheck() { 
             document.getElementById('sys-check-overlay').style.display = 'none'; 
             if(window.speechSynthesis) window.speechSynthesis.speak(new SpeechSynthesisUtterance("")); 
-            
-            // FORCE START IN INJECT MODE
             document.getElementById('main-mode-toggle').checked = false; 
             toggleMainMode();
         }
