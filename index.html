@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>System Panel v15.43 (Instant Vibe)</title> 
+    <title>System Panel v15.43 (Sync Core)</title> 
     
     <link rel="preconnect" href="https://www.google.com">
     <link rel="preconnect" href="https://inject-fb-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
@@ -109,7 +109,6 @@
         .rem-title { font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: 2px; text-transform: uppercase; }
         .btn-close { background: rgba(255,255,255,0.1); color: #aaa; border: none; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; }
 
-        /* SAVE BUTTON (ICON STYLE) */
         .btn-icon-save {
             background: none; border: none; color: #00d2ff; font-size: 22px; cursor: pointer;
             width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
@@ -133,7 +132,6 @@
             box-shadow: 0 0 30px rgba(0, 210, 255, 0.4);
             animation: breathe 2s infinite;
         }
-        /* New Waiting/Delay State */
         .mic-waiting {
             border-color: #ffcc00 !important; color: #ffcc00 !important; background: #222 !important;
             box-shadow: none; animation: pulseWait 1s infinite;
@@ -421,6 +419,7 @@
                 document.getElementById('loop-val').innerText = this.value + "x";
             });
 
+            // LOGIC LOAD (ROBUST)
             let stored = localStorage.getItem('sysPanelSettingsV43');
             if(!stored) savedLogics = JSON.parse(JSON.stringify(DEFAULT_LOGICS));
             
@@ -464,6 +463,7 @@
             };
             localStorage.setItem('sysPanelSettingsV43', JSON.stringify(settings));
             
+            // SAVE ICON ANIMATION
             let btn = document.getElementById('btn-save-icon');
             let originalHTML = '<i class="fa fa-save"></i>';
             btn.innerHTML = '<i class="fa fa-check"></i>';
@@ -640,7 +640,8 @@
         function handleManualInput() {
             let text = document.getElementById('inj-manual-input').value.trim();
             if(!text) return;
-            updateLog(text);
+            // SYNCED LOGIC V15.43
+            updateLog(text); 
             kirim(text);
             triggerSuccessVibration();
             handlePostSuccess();
@@ -714,7 +715,7 @@ OUTPUT:`;
 
         async function kirim(val) { try { await fetch(REST_API, { method: 'PUT', body: JSON.stringify(val) }); } catch(e) {} }
 
-        // --- CORE MIC ---
+        // --- CORE MIC (SYNCED V15.43) ---
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true; recognition.interimResults = false; recognition.lang = 'id-ID';
@@ -745,15 +746,16 @@ OUTPUT:`;
 
                         if (rawPrediction.length > 0) {
                             
-                            // 1. INSTANT VIBRATION (IMMEDIATE FEEDBACK)
+                            // 1. INSTANT FEEDBACK (SYNCED)
                             triggerSuccessVibration();
 
-                            // 2. STOP MIC
+                            // 2. STOP LISTENING
                             isPaused = true; 
                             recognition.stop();
                             updateMicUI(false);
                             updateLog("PROCESSING...");
 
+                            // 3. BRANCHING
                             if (isAIMode) {
                                 askGemini(rawPrediction);
                             } else {
@@ -762,6 +764,7 @@ OUTPUT:`;
                                 if (mode === 'reverse') finalData = rawPrediction.toLowerCase().split('').reverse().join('');
                                 else if (mode === 'alay') finalData = rawPrediction.toLowerCase().replace(/a/g,'4').replace(/e/g,'3').replace(/i/g,'1').replace(/o/g,'0').replace(/s/g,'5');
 
+                                // SYNCED LOG UPDATE (V15.43)
                                 updateLog(finalData); 
                                 kirim(finalData);
                                 handlePostSuccess();
@@ -863,6 +866,8 @@ OUTPUT:`;
         function tutupSystemCheck() { 
             document.getElementById('sys-check-overlay').style.display = 'none'; 
             if(window.speechSynthesis) window.speechSynthesis.speak(new SpeechSynthesisUtterance("")); 
+            
+            // FORCE START IN INJECT MODE
             document.getElementById('main-mode-toggle').checked = false; 
             toggleMainMode();
         }
