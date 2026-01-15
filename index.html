@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     
     <style>
-        /* --- TAMPILAN 100% SAMA --- */
+        /* --- TAMPILAN 100% SAMA DENGAN FILE (9) --- */
         * { box-sizing: border-box; }
         
         body { 
@@ -78,7 +78,7 @@
             <button id="tm-alay" class="btn-text-mode" onclick="setTextMode('alay')">Alay</button>
         </div>
         
-        <div style="margin-top:20px; text-align:center; color:#ddd; font-size:10px;">v21.22 Secure Lock</div>
+        <div style="margin-top:20px; text-align:center; color:#ddd; font-size:10px;">v21.22 Secure Lock + WakeUp</div>
     </div>
 
     <script>
@@ -180,6 +180,22 @@
                 tapCount = 0;
             }
         }
+
+        // --- [BARU] ANTI-DELAY SAAT LAYAR MENYALA (WAKE UP) ---
+        // Ini adalah satu-satunya bagian yang saya tambahkan dari file index (9).html
+        document.addEventListener('visibilitychange', function() {
+            // Jika user kembali ke tab ini dan statusnya sedang 'Running'
+            if (document.visibilityState === 'visible' && isRunning) {
+                // Jangan tunggu timer lama, langsung cek DETIK ITU JUGA
+                if (pollInterval) clearInterval(pollInterval);
+                cekDatabaseCepat();
+                
+                // Jalanin lagi loop normalnya
+                pollInterval = setInterval(() => {
+                    if(isRunning) cekDatabaseCepat();
+                }, 100); 
+            }
+        });
     </script>
 </body>
 </html>
